@@ -8,7 +8,7 @@ class AppTheme {
   static const Color textBlack = Color(0xFF212121);
   static const Color darkGray = Color(0xFF757575);
   static const Color accentOrange = Color(0xFFFF9800); // Energy
-  static const Color accentBlue = Color(0xFF03A9F4); // Trust
+  static const Color accentBlue = Color(0xFF1E3A5F); // Navy (Trust)
 
   static ThemeData get lightTheme {
     return ThemeData(

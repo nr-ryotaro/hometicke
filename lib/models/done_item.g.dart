@@ -20,19 +20,21 @@ class DoneItemAdapter extends TypeAdapter<DoneItem> {
       id: fields[0] as String,
       text: fields[1] as String,
       createdAt: fields[2] as DateTime,
-    );
+    ).._category = fields[3] as String?;
   }
 
   @override
   void write(BinaryWriter writer, DoneItem obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.text)
       ..writeByte(2)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(3)
+      ..write(obj._category);
   }
 
   @override
