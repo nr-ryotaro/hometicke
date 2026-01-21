@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/done_provider.dart';
 import '../providers/theme_provider.dart';
 import '../theme/theme_manager.dart';
-import '../theme/app_theme.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -21,11 +20,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.read(themeTypeProvider.notifier).changeTheme(themeType);
     }
 
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppTheme.lightGray,
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const Text('設定'),
-        backgroundColor: AppTheme.baseWhite,
+        backgroundColor: theme.colorScheme.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -36,16 +36,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              color: AppTheme.baseWhite,
+              color: theme.colorScheme.surface,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'テーマ選択',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textBlack,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -63,16 +63,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              color: AppTheme.baseWhite,
+              color: theme.colorScheme.surface,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'データ管理',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textBlack,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -110,7 +110,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         border: Border.all(
           color: isSelected
               ? theme.colorScheme.primary
-              : AppTheme.darkGray.withOpacity(0.2),
+              : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.2),
           width: isSelected ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
@@ -133,7 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             color: isSelected
                 ? theme.colorScheme.primary
-                : AppTheme.textBlack,
+                : Theme.of(context).colorScheme.onSurface,
           ),
         ),
         trailing: isSelected

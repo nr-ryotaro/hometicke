@@ -35,16 +35,17 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppTheme.lightGray,
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         title: const SizedBox.shrink(),
-        backgroundColor: AppTheme.baseWhite,
+        backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            color: AppTheme.textBlack,
+            color: theme.colorScheme.onSurface,
             onPressed: () {
               Navigator.push(
                 context,
@@ -58,17 +59,18 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Container(
-            color: AppTheme.baseWhite,
+            color: theme.colorScheme.surface,
             child: TabBar(
               controller: _tabController,
-              indicatorColor: AppTheme.accentOrange,
+              indicatorColor: theme.colorScheme.primary,
               indicatorWeight: 3,
-              labelColor: AppTheme.accentOrange,
-              unselectedLabelColor: AppTheme.darkGray,
+              labelColor: theme.colorScheme.primary,
+              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
+              isScrollable: false,
               tabs: const [
                 Tab(
                   icon: Icon(Icons.dashboard, size: 24),
@@ -117,15 +119,17 @@ class SummaryTab extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               size: 48,
-              color: AppTheme.darkGray,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
             Text(
               'データの読み込みに失敗しました',
-              style: TextStyle(color: AppTheme.darkGray),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -285,7 +289,7 @@ class SummaryTab extends ConsumerWidget {
                       '統計情報',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textBlack,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                     ),
                   ],
@@ -348,7 +352,7 @@ class SummaryTab extends ConsumerWidget {
                       'カテゴリー別統計',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textBlack,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                     ),
                   ],
@@ -411,22 +415,26 @@ class SummaryTab extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      AsyncCategoryService.getCategoryName(category),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.textBlack,
+                    Builder(
+                      builder: (context) => Text(
+                        AsyncCategoryService.getCategoryName(category),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  '$count件 (${percentage.toStringAsFixed(1)}%)',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textBlack,
+                Builder(
+                  builder: (context) => Text(
+                    '$count件 (${percentage.toStringAsFixed(1)}%)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                 ),
               ],
@@ -619,12 +627,12 @@ class GraphTab extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             '直近7日間のDone数',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.textBlack,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -725,17 +733,34 @@ class GraphTab extends ConsumerWidget {
                               try {
                                 final index = value.toInt();
                                 if (index >= 0 && index < weeklyStats.length) {
-                                  final label = weeklyStats[index]['label'] as String? ?? '';
-                                  if (label.isNotEmpty) {
+                                  final date = weeklyStats[index]['date'] as DateTime?;
+                                  if (date != null) {
+                                    final weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+                                    final weekday = weekdays[date.weekday - 1];
                                     return Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Text(
-                                        label,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.darkGray,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '${date.month}/${date.day}',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: AppTheme.darkGray,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            weekday,
+                                            style: const TextStyle(
+                                              fontSize: 9,
+                                              color: AppTheme.darkGray,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     );
                                   }
@@ -745,7 +770,7 @@ class GraphTab extends ConsumerWidget {
                               }
                               return const Text('');
                             },
-                            reservedSize: 50,
+                            reservedSize: 60,
                           ),
                         ),
                         leftTitles: AxisTitles(
@@ -900,8 +925,8 @@ class GraphTab extends ConsumerWidget {
                             const SizedBox(width: 8),
                             Text(
                               '$count',
-                              style: const TextStyle(
-                                color: AppTheme.textBlack,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1065,10 +1090,10 @@ class _CalendarTabState extends ConsumerState<CalendarTab> {
                       const SizedBox(width: 8),
                       Text(
                         '${_selectedDay.year}年${_selectedDay.month}月${_selectedDay.day}日',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.textBlack,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const Spacer(),

@@ -6,10 +6,12 @@ import 'package:confetti/confetti.dart';
 import 'package:intl/intl.dart';
 import '../providers/done_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/letter_provider.dart';
 import '../utils/praise_messages.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_manager.dart';
 import '../services/category_service.dart';
+import '../widgets/letter_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +21,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   final FocusNode _textFocusNode = FocusNode();
   final ConfettiController _confettiController = ConfettiController(
@@ -29,9 +31,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     duration: const Duration(seconds: 3),
   );
   late AnimationController _flashController;
+  late AnimationController _praiseBubbleController;
+  late Animation<double> _praiseScaleAnimation;
+  late Animation<double> _praiseOpacityAnimation;
+  late Animation<Offset> _praiseSlideAnimation;
   bool _isFlashing = false;
   String? _lastInputText;
   bool _showInputPopup = false;
+  String? _currentPraise;
+  bool _showPraiseBubble = false;
 
   @override
   void initState() {
@@ -39,6 +47,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _flashController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
+    );
+    _praiseBubbleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _praiseScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _praiseBubbleController,
+        curve: Curves.elasticOut,
+      ),
+    );
+    _praiseOpacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _praiseBubbleController,
+        curve: Curves.easeOut,
+      ),
+    );
+    _praiseSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _praiseBubbleController,
+        curve: Curves.easeOut,
+      ),
     );
   }
 
@@ -49,6 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _confettiController.dispose();
     _superConfettiController.dispose();
     _flashController.dispose();
+    _praiseBubbleController.dispose();
     super.dispose();
   }
 
@@ -71,6 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // Doneを追加
     await ref.read(doneControllerProvider).addDone(text);
+    
     _textController.clear();
 
     // 入力欄に自動的にフォーカスを戻す
@@ -89,16 +124,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
     });
 
-    // 褒め言葉を表示
+    // 褒め言葉を吹き出しで表示
     final praise = PraiseMessages.getRandomPraise();
     if (mounted) {
-      // 褒め言葉をカスタムダイアログ風に表示
-      showDialog(
-        context: context,
-        barrierColor: Colors.black.withOpacity(0.3),
-        barrierDismissible: true,
-        builder: (context) => _PraiseDialog(praise: praise),
-      );
+      setState(() {
+        _currentPraise = praise;
+        _showPraiseBubble = true;
+      });
+      _praiseBubbleController.forward();
+      
+      // 2.5秒後に自動的に消す
+      Future.delayed(const Duration(milliseconds: 2500), () {
+        if (mounted) {
+          _praiseBubbleController.reverse().then((_) {
+            if (mounted) {
+              setState(() {
+                _showPraiseBubble = false;
+                _currentPraise = null;
+              });
+            }
+          });
+        }
+      });
     }
 
     // 演出
@@ -133,19 +180,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _superConfettiController.play();
   }
 
+  /// レターをチェックして表示
+  Future<void> _checkAndShowLetter(BuildContext context) async {
+    try {
+      final letterController = ref.read(letterControllerProvider);
+      if (letterController.shouldShowLetter()) {
+        final letterContent = await letterController.generateTodayLetter();
+        if (mounted && letterContent.isNotEmpty) {
+          await letterController.markLetterAsShown();
+          showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (context) => LetterDialog(letterContent: letterContent),
+          );
+        }
+      }
+    } catch (e) {
+      // エラーハンドリング
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final todayCount = ref.watch(todayDoneCountProvider);
     final todayList = ref.watch(todayDoneListProvider);
 
+    // アプリ起動時にレターをチェック
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowLetter(context);
+    });
+
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        elevation: 0,
+      ),
       body: AnimatedBuilder(
         animation: _flashController,
         builder: (context, child) {
+          final theme = Theme.of(context);
           final flashColor = _isFlashing
               ? (_flashController.value < 0.5
-                  ? AppTheme.accentOrange
-                  : AppTheme.accentBlue)
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.secondary)
               : Colors.transparent;
 
           return Container(
@@ -192,18 +269,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               children: [
                                 Text(
                                   '本日のDone',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        color: AppTheme.darkGray,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                                 if (todayCount > 0)
                                   IconButton(
                                     icon: const Icon(Icons.delete),
-                                    color: AppTheme.darkGray,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                     tooltip: '今日のDoneを一括削除',
                                     onPressed: () => _showDeleteTodayDialog(
                                       context,
@@ -215,14 +289,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             const SizedBox(height: 8),
                             Text(
                               '$todayCount',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .displayLarge
-                                  ?.copyWith(
-                                    color: AppTheme.accentOrange,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 64,
-                                  ),
+                              style: theme.textTheme.displayLarge?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 64,
+                              ),
                             ),
                           ],
                         ),
@@ -240,8 +311,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     Icon(
                                       Icons.check_circle_outline,
                                       size: 64,
-                                      color:
-                                          AppTheme.darkGray.withOpacity(0.3),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant
+                                          .withOpacity(0.3),
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
@@ -250,7 +323,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                           .textTheme
                                           .titleMedium
                                           ?.copyWith(
-                                            color: AppTheme.darkGray,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                           ),
                                     ),
                                   ],
@@ -265,10 +340,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     margin: const EdgeInsets.only(bottom: 12),
                                     child: ListTile(
                                       leading: CircleAvatar(
-                                        backgroundColor: AppTheme.accentBlue,
-                                        child: const Icon(
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .secondary,
+                                        child: Icon(
                                           Icons.check,
-                                          color: AppTheme.baseWhite,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSecondary,
                                         ),
                                       ),
                                       title: Text(
@@ -284,7 +363,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                             DateFormat('HH:mm')
                                                 .format(item.createdAt),
                                             style: TextStyle(
-                                              color: AppTheme.darkGray,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -361,7 +442,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                         children: [
                                           IconButton(
                                             icon: const Icon(Icons.edit),
-                                            color: AppTheme.darkGray,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                             onPressed: () => _showCategoryDialog(
                                               context,
                                               ref,
@@ -371,7 +454,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.delete_outline),
-                                            color: AppTheme.darkGray,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                             onPressed: () {
                                               ref
                                                   .read(doneControllerProvider)
@@ -388,42 +473,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                       // 入力ポップアップ表示
                       if (_showInputPopup && _lastInputText != null)
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.accentOrange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppTheme.accentOrange.withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: AppTheme.accentOrange,
-                                size: 20,
+                        Builder(
+                          builder: (context) {
+                            final theme = Theme.of(context);
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _lastInputText!,
-                                  style: TextStyle(
-                                    color: AppTheme.textBlack,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary.withOpacity(0.3),
+                                  width: 1,
                                 ),
                               ),
-                            ],
-                          ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: theme.colorScheme.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _lastInputText!,
+                                      style: TextStyle(
+                                        color: theme.colorScheme.onSurface,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
 
                       // 下部：入力欄とボタン
@@ -468,6 +558,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               enableSuggestions: true,
                               autocorrect: true,
                               textCapitalization: TextCapitalization.none,
+                              enableIMEPersonalizedLearning: true,
+                              maxLines: null,
+                              minLines: 1,
                               onSubmitted: (_) => _handleDone(),
                             ),
                             const SizedBox(height: 12),
@@ -488,40 +581,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
 
                 // 通常紙吹雪
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: ConfettiWidget(
-                    confettiController: _confettiController,
-                    blastDirection: pi / 2,
-                    maxBlastForce: 5,
-                    minBlastForce: 2,
-                    emissionFrequency: 0.05,
-                    numberOfParticles: 20,
-                    gravity: 0.1,
-                    colors: const [
-                      AppTheme.accentOrange,
-                      AppTheme.accentBlue,
-                    ],
-                  ),
+                Builder(
+                  builder: (context) {
+                    final theme = Theme.of(context);
+                    return Align(
+                      alignment: Alignment.topCenter,
+                      child: ConfettiWidget(
+                        confettiController: _confettiController,
+                        blastDirection: pi / 2,
+                        maxBlastForce: 5,
+                        minBlastForce: 2,
+                        emissionFrequency: 0.05,
+                        numberOfParticles: 20,
+                        gravity: 0.1,
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
+                      ),
+                    );
+                  },
                 ),
 
                 // スーパー紙吹雪
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: ConfettiWidget(
-                    confettiController: _superConfettiController,
-                    blastDirection: pi / 2,
-                    maxBlastForce: 10,
-                    minBlastForce: 5,
-                    emissionFrequency: 0.1,
-                    numberOfParticles: 50,
-                    gravity: 0.1,
-                    colors: const [
-                      AppTheme.accentOrange,
-                      AppTheme.accentBlue,
-                    ],
-                  ),
+                Builder(
+                  builder: (context) {
+                    final theme = Theme.of(context);
+                    return Align(
+                      alignment: Alignment.topCenter,
+                      child: ConfettiWidget(
+                        confettiController: _superConfettiController,
+                        blastDirection: pi / 2,
+                        maxBlastForce: 10,
+                        minBlastForce: 5,
+                        emissionFrequency: 0.1,
+                        numberOfParticles: 50,
+                        gravity: 0.1,
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
+                      ),
+                    );
+                  },
                 ),
+                
+                // 褒め言葉の吹き出し
+                if (_showPraiseBubble && _currentPraise != null)
+                  Builder(
+                    builder: (context) {
+                      final theme = Theme.of(context);
+                      return Positioned(
+                        bottom: 200,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: SlideTransition(
+                            position: _praiseSlideAnimation,
+                            child: FadeTransition(
+                              opacity: _praiseOpacityAnimation,
+                              child: ScaleTransition(
+                                scale: _praiseScaleAnimation,
+                                child: _PraiseBubble(
+                                  praise: _currentPraise!,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
           );
@@ -673,78 +804,94 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-// 褒め言葉ダイアログ
-class _PraiseDialog extends StatelessWidget {
+// 褒め言葉の吹き出し
+class _PraiseBubble extends StatelessWidget {
   final String praise;
+  final Color color;
 
-  const _PraiseDialog({required this.praise});
+  const _PraiseBubble({
+    required this.praise,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
+    final theme = Theme.of(context);
+    return CustomPaint(
+      painter: _BubblePainter(color: color),
       child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.accentOrange.withOpacity(0.95),
-              AppTheme.accentOrange,
-            ],
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Text(
+          praise,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onPrimary,
+            height: 1.3,
           ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.accentOrange.withOpacity(0.5),
-              blurRadius: 30,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ハートアイコン
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.baseWhite.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.favorite,
-                color: AppTheme.baseWhite,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // 褒め言葉
-            Text(
-              praise,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.baseWhite,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            // 装飾的な線
-            Container(
-              width: 60,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppTheme.baseWhite.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
+          textAlign: TextAlign.center,
         ),
       ),
     );
   }
+}
+
+// 吹き出しの形状を描画
+class _BubblePainter extends CustomPainter {
+  final Color color;
+
+  _BubblePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final shadowPaint = Paint()
+      ..color = color.withOpacity(0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+    // 吹き出しの本体（角丸四角形）
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height - 12),
+      const Radius.circular(20),
+    );
+
+    // 影を描画
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(2, 2, size.width, size.height - 12),
+        const Radius.circular(20),
+      ),
+      shadowPaint,
+    );
+
+    // 本体を描画
+    canvas.drawRRect(rect, paint);
+
+    // 三角形のしっぽを描画（下中央）
+    final path = Path();
+    final tailX = size.width / 2;
+    final tailY = size.height - 12;
+    path.moveTo(tailX - 12, tailY);
+    path.lineTo(tailX, tailY + 12);
+    path.lineTo(tailX + 12, tailY);
+    path.close();
+
+    // 影のしっぽ
+    final shadowPath = Path();
+    shadowPath.moveTo(tailX - 12 + 2, tailY + 2);
+    shadowPath.lineTo(tailX + 2, tailY + 12 + 2);
+    shadowPath.lineTo(tailX + 12 + 2, tailY + 2);
+    shadowPath.close();
+    canvas.drawPath(shadowPath, shadowPaint);
+
+    // しっぽを描画
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

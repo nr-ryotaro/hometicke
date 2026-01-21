@@ -2,28 +2,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/done_item.dart';
 import '../services/category_service.dart';
+import 'badge_provider.dart';
 
 final doneBoxProvider = FutureProvider<Box<DoneItem>>((ref) async {
-  await Hive.initFlutter();
-  if (!Hive.isAdapterRegistered(0)) {
-    Hive.registerAdapter(DoneItemAdapter());
-  }
-  final box = await Hive.openBox<DoneItem>('done_items');
-  
-  // 既存データのマイグレーション（categoryがnullの場合にデフォルト値を設定）
   try {
-    for (var item in box.values) {
-      // categoryがnullまたは空の場合にデフォルト値を設定
-      if (item.category.isEmpty) {
-        item.category = Category.uncategorized;
-        await item.save();
+    // Hiveはmain.dartで初期化済み
+    final box = await Hive.openBox<DoneItem>('done_items');
+    
+    // 既存データのマイグレーション（categoryがnullの場合にデフォルト値を設定）
+    try {
+      for (var item in box.values) {
+        // categoryがnullまたは空の場合にデフォルト値を設定
+        if (item.category.isEmpty) {
+          item.category = Category.uncategorized;
+          await item.save();
+        }
       }
+    } catch (e) {
+      // マイグレーションエラーは無視
     }
+    
+    return box;
   } catch (e) {
-    // マイグレーションエラーは無視
+    // エラー時は再スロー
+    rethrow;
   }
-  
-  return box;
 });
 
 final doneListProvider = StreamProvider<List<DoneItem>>((ref) async* {
@@ -262,6 +265,21 @@ class DoneController {
     
     // 非同期でカテゴリー判定を実行（バックグラウンド処理）
     _classifyCategoryAsync(item.id, text.trim());
+    
+    // バッジを更新（非同期）
+    _updateBadgesAsync();
+  }
+
+  /// バッジを非同期で更新
+  Future<void> _updateBadgesAsync() async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      final doneList = ref.read(doneListProvider).value ?? [];
+      final badgeController = ref.read(badgeControllerProvider);
+      await badgeController.updateBadgesFromDoneList(doneList);
+    } catch (e) {
+      // エラーハンドリング
+    }
   }
 
 

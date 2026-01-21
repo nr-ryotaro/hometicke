@@ -143,15 +143,15 @@ class ThemeManager {
         onBackground: const Color(0xFF212121),
       ),
       scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-      textTheme: GoogleFonts.notoSansJpTextTheme(
+      textTheme: GoogleFonts.bungeeTextTheme(
         ThemeData.light().textTheme.apply(
               bodyColor: const Color(0xFF212121),
               displayColor: const Color(0xFF212121),
             ),
       ).copyWith(
-        displayLarge: GoogleFonts.notoSansJp(
+        displayLarge: GoogleFonts.bungee(
           fontSize: 64,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
           color: const Color(0xFFFF9800),
         ),
       ),
@@ -171,9 +171,9 @@ class ThemeManager {
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 1,
-          textStyle: GoogleFonts.notoSansJp(
+          textStyle: GoogleFonts.bungee(
             fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -196,15 +196,15 @@ class ThemeManager {
         onBackground: const Color(0xFF212121),
       ),
       scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-      textTheme: GoogleFonts.notoSansJpTextTheme(
+      textTheme: GoogleFonts.playfairDisplayTextTheme(
         ThemeData.light().textTheme.apply(
               bodyColor: const Color(0xFF212121),
               displayColor: const Color(0xFF212121),
             ),
       ).copyWith(
-        displayLarge: GoogleFonts.notoSansJp(
+        displayLarge: GoogleFonts.playfairDisplay(
           fontSize: 64,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           color: const Color(0xFF1E3A5F),
         ),
       ),
@@ -224,9 +224,9 @@ class ThemeManager {
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 1,
-          textStyle: GoogleFonts.notoSansJp(
+          textStyle: GoogleFonts.playfairDisplay(
             fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -249,13 +249,13 @@ class ThemeManager {
         onBackground: const Color(0xFF212121),
       ),
       scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-      textTheme: GoogleFonts.notoSansJpTextTheme(
+      textTheme: GoogleFonts.interTextTheme(
         ThemeData.light().textTheme.apply(
               bodyColor: const Color(0xFF212121),
               displayColor: const Color(0xFF212121),
             ),
       ).copyWith(
-        displayLarge: GoogleFonts.notoSansJp(
+        displayLarge: GoogleFonts.inter(
           fontSize: 64,
           fontWeight: FontWeight.w600,
           color: const Color(0xFF37474F),
@@ -278,7 +278,7 @@ class ThemeManager {
             borderRadius: BorderRadius.circular(8),
           ),
           elevation: 1,
-          textStyle: GoogleFonts.notoSansJp(
+          textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
@@ -303,15 +303,15 @@ class ThemeManager {
         onBackground: Colors.black,
       ),
       scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-      textTheme: GoogleFonts.notoSansJpTextTheme(
+      textTheme: GoogleFonts.mPlus1pTextTheme(
         ThemeData.light().textTheme.apply(
               bodyColor: Colors.black,
               displayColor: Colors.black,
             ),
       ).copyWith(
-        displayLarge: GoogleFonts.notoSansJp(
+        displayLarge: GoogleFonts.mPlus1p(
           fontSize: 64,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           color: Colors.black,
         ),
       ),
@@ -332,9 +332,9 @@ class ThemeManager {
             borderRadius: BorderRadius.circular(8),
           ),
           elevation: 0,
-          textStyle: GoogleFonts.notoSansJp(
+          textStyle: GoogleFonts.mPlus1p(
             fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
